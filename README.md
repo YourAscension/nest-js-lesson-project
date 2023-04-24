@@ -38,6 +38,7 @@
     DB_USERNAME="yourascension"
     DB_PASSWORD="123456"
     DB_PORT=1521
+    SECRET_KEY="moonshine"
     ```
 <hr/>
 
@@ -98,7 +99,7 @@
     })
     export class AppModule {}
    ```
-   💡 Т.к. модуль для работы с конфигом `.env` был импортирован в `database.module.ts`, то его функционал также доступен в `app.module.ts`
+   >[💡] Т.к. модуль для работы с конфигом `.env` был импортирован в `database.module.ts`, то его функционал также доступен в `app.module.ts`
     ```TypeScript
    //TypeScript
    //📁src/main.ts
@@ -130,7 +131,7 @@
     })
     export class UserModule {}
    ```
-   💡 При создании модуля с помощью __NEST CLI__ он автоматически импортируется в главный модуль `app.module.ts`.
+   >💡 При создании модуля с помощью __NEST CLI__ он автоматически импортируется в главный модуль `app.module.ts`.
     ```TypeScript
     //TypeScript
    //📁src/app.module.ts
@@ -289,7 +290,7 @@
     }
    ```
 5. Теперь если мы запустим сервер и перейдём по эндпоинту `localhost:4001/users`, то увидим список всех юзеров (данные были созданы заранее).
-6. Вернёмся к `user.service.ts` чтобы создать метод для создания юзеров. Метод называется `createUser`, в качестве аргументов он принимает dto (__Data-Transfer-Object__):
+6. Вернёмся к `user.service.ts` чтобы создать метод для создания юзеров. Метод называется `createUser`, в качестве аргументов он принимает dto:
     ```TypeScript
     //TypeScript
    //📁src/user/user.service.ts
@@ -314,7 +315,7 @@
         }
     }
    ```
-   💡 dto - преобразование данные к необходимому виду.<br> В папке user создадим папку __dto__, а в ней файл `user-create.dto.ts` (преобразование данных юзера для создания):
+   >💡 __dto__  (__Data-Transfer-Object__) - преобразование данных к необходимому виду.<br> В папке user создадим папку __dto__, а в ней файл `user-create.dto.ts` (преобразование данных юзера для создания):
     ```TypeScript
     //TypeScript
    //📁src/user/dto/create-user.dto.ts
@@ -415,29 +416,29 @@
        }
    }
    ```
-   ⚠️Чтобы увидеть ответ от сервера, необходимо также задокументировать модели.
+   >⚠️ Чтобы увидеть ответ от сервера, необходимо также задокументировать модели.
 ### Документация модели User и dto
 1. С помощью декоратора `@ApiProperty` можно задокументировать столбцы модели. Указываем пример значения и его описание в качестве аргументов:
     ```TypeScript
     //TypeScript
    //📁src/user/user.model.ts
-   @Table({tableName: 'users-nest', timestamps: false})
-   export class User extends Model<User, UserCreationAttribute> {
-        @ApiProperty({example: '1', description: 'ID пользователя'})
-        @Column({type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true, allowNull: false})
-        id: number;
+       @Table({tableName: 'users-nest', timestamps: false})
+        export class User extends Model<User, UserCreationAttribute> {
+            @ApiProperty({example: '1', description: 'ID пользователя'})
+            @Column({type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true, allowNull: false})
+            id: number;
    
-        @ApiProperty({example: 'placeholder@gmail.com', description: 'Почтовый адрес'})
-        @Column({type: DataType.STRING, unique: true, allowNull: false})
-        email: string;
+            @ApiProperty({example: 'placeholder@gmail.com', description: 'Почтовый адрес'})
+            @Column({type: DataType.STRING, unique: true, allowNull: false})
+            email: string;
    
-        @ApiProperty({example: 'qwerty123', description: 'Пароль'})
-        @Column({type: DataType.STRING, allowNull: false})
-        password: string;
+            @ApiProperty({example: 'qwerty123', description: 'Пароль'})
+            @Column({type: DataType.STRING, allowNull: false})
+            password: string;
    
-        @ApiProperty({example: 'true', description: 'Забанен ли'})
-        @Column({type: DataType.BOOLEAN, defaultValue: false, allowNull: false})
-        banned: boolean;
+            @ApiProperty({example: 'true', description: 'Забанен ли'})
+            @Column({type: DataType.BOOLEAN, defaultValue: false, allowNull: false})
+            banned: boolean;
    }
    ```
 2. Также задокументируем `create-user.dto.ts`:
@@ -522,18 +523,18 @@
 <hr/>
 
 ## Создание модуля Roles
-Создадим модуль, контроллер, сервис с помощью __Nest CLI__. `nest generate module roles`, `nest generate controller roles`, `nest generate service roles`. 
+Создадим модуль, контроллер, сервис с помощью __Nest CLI__. `nest g resource roles`. 
 ### Создание модели Roles
 1. Создадим модель для ролей `roles.model.ts`:
     ```TypeScript
-    //TypeScript
-   //📁src/roles/roles.model.ts
+       //TypeScript
+      //📁src/roles/roles.model.ts
    import {Table, Column, Model, DataType} from 'sequelize-typescript';
    import {ApiProperty} from "@nestjs/swagger";
    
    //Создаём интерфейс, в котором указываем какие свойства будем указывать вручную при создании роли
    interface RoleCreationAttribute {
-    role: string
+   role: string
    }
    
    @Table({tableName: 'roles-nest', timestamps: false})
@@ -826,7 +827,7 @@
 <hr/>
 
 ## Создание модуля Auth
-1. Создаём модуль, контроллер и сервис с помощью Nest CLI `nest generate module auth`, `nest generate service auth`, `nest generate controller auth`.<br> Так же нужно остановить пакет для работы с __JWT__ и __bcryptjs__ для шифрования пароля: `npm install @nestjs/jwt bcryptjs`
+1. Создаём модуль, контроллер и сервис с помощью Nest CLI `nest generate resource auth`.<br> Так же нужно остановить пакет для работы с __JWT__ и __bcryptjs__ для шифрования пароля: `npm install @nestjs/jwt bcryptjs`
 ### Создание контроллера Auth
 1. В конструктор класса контроллера заинжектим `AuthService`, после чего создадим два POST метода:
    1) `login(@Body() userDto: **CreateUserDto**)` - метод для авторизации;
@@ -946,7 +947,7 @@
             const user = await this.userRepository.create(dto)
             const role = await this.roleService.getRoleByValue('USER');
             await user.$set('roles', role.id);
-    				user.roles = role; //⚠️Костыль, чтобы в возвращаем объекте была роль
+            user.roles = role; //⚠️ Костыль, чтобы в возвращаем объекте была роль
             return user;
         }
     
@@ -976,7 +977,7 @@
       imports: [UserModule,
       
       JwtModule.register({
-    		ConfigModule.forRoot({envFilePath: '.env'}),
+      ConfigModule.forRoot({envFilePath: '.env'}),
         secret: process.env.SECRET_KEY,
         signOptions: {
           expiresIn: '24h'
@@ -988,10 +989,10 @@
     ```
 
 3. В `auth.service.ts` реализуем методы `registration`, `generateToken`, `login`, `validateuser`:
-   1. `registration(userDto: **CreateUserDto**)` - проверяем есть ли такой юзер, если нет, то хэшируем пароль и создаём его, а также генерируем токен;
-   2. `generateToken(user: **User**)` - генерирует токен;
+   1. `registration(userDto: CreateUserDto)` - проверяем есть ли такой юзер, если нет, то хэшируем пароль и создаём его, а также генерируем токен;
+   2. `generateToken(user: User)` - генерирует токен;
    3. `login(userDto: CreateUserDto)` - авторизация, после успешной авторизации генерируется токен;
-   4. `validateUser(userDto: **CreateUserDto**)` - проверяет есть ли такой юзер в БД, затем сравнивает пароли;
+   4. `validateUser(userDto: CreateUserDto)` - проверяет есть ли такой юзер в БД, затем сравнивает пароли;
 
     ```TypeScript
    //TypeScript
@@ -1087,9 +1088,9 @@
     }
     ```
 
-2. Из `auth.module.ts` экспортируем `~~AuthService` и~~ `JwtModule` (т.е. в Гварде вызывается сервис из этого модуля):
-   <br>⚠️Нам необходимо использовать только что созданный `@Guard` в модуле `User`. Т.к. модули `Auth` и `User` используются друг в друге, то получается кольцевая зависимость. Чтобы исправить эту ошибку, необходимо в модуль `Auth` импортировать `User` с помощью `forwardRef`: `forwardRef(()=>UserModule)`
-
+2. Из `auth.module.ts` экспортируем `JwtModule` (т.к. в `JwtAuthGuard` вызывается сервис из этого модуля):
+   <br>
+   >⚠️Нам необходимо использовать только что созданный `@Guard` в модуле `User`. Т.к. модули `Auth` и `User` используются друг в друге, то получается кольцевая зависимость. Чтобы исправить эту ошибку, необходимо в модуль `Auth` импортировать `User` с помощью `forwardRef`: `forwardRef(()=>UserModule)`
     ```TypeScript
    //TypeScript
     //📁src/auth/auth.module.ts
@@ -1142,7 +1143,7 @@
         imports: [
             SequelizeModule.forFeature([User]),
             RolesModule,
-    				//Для решения проблемы кольцевой зависимости
+    		//Для решения проблемы кольцевой зависимости
             forwardRef(()=>AuthModule),
         ],
         controllers: [UserController],
@@ -1152,7 +1153,7 @@
     export class UserModule {}
     ```
 
-   💡 Т.е. если необходимо импортировать модули друг в друга, необходимо это делать с помощью функции `forwardRef`.
+   >[💡] Т.е. если необходимо импортировать модули друг в друга, необходимо это делать с помощью функции `forwardRef`.
 
 4. Перейдём к контроллеру `user.controller.ts`, методу `getAllUsers` добавим декоратор `@UseGuards`, который в качестве аргументов, будет принимать созданный `JwtAuthGuard`:
 
