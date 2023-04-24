@@ -12,11 +12,12 @@ async function bootstrap() {
         .setDescription('Документация REST API')
         .setVersion('1.0.0')
         .addTag('YourAscension')
+        .addBearerAuth()
         .build();
     //Создаём документацию указываем приложение и конфиг
     const document = SwaggerModule.createDocument(app, config)
     //Эндпоинт по которому можем найти документацию
-    SwaggerModule.setup('api/docs', app, document);
+    SwaggerModule.setup('api/docs', app, document, {swaggerOptions : {persistAuthorization: true}});
 
     await app.listen(PORT, () => console.log(`Server has been started on PORT = ${PORT}`));
 }
