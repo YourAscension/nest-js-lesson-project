@@ -24,6 +24,7 @@
       1) [Получаем доступ к сервису User из сервиса Auth](#получаем-доступ-к-сервису-user-из-сервиса-auth)
       2) [JWT, авторизация, регистрация, генерирование токена](#jwt-авторизация-регистрация-генерирование-токена)
    3) [Создание Guard для ограничения доступа неавторизованным пользователям](#создание-guard-для-ограничения-доступа-неавторизированным-пользователям)
+   4) [Roles Guard для ограничения доступа по ролям. Создание собственного декоратора](#roles-guard-для-ограничения-доступа-по-ролям-создание-собственного-декоратора)
 <hr>
 
 ## Создание проекта
@@ -988,11 +989,12 @@
     export class AuthModule {}
     ```
 
-3. В `auth.service.ts` реализуем методы `registration`, `generateToken`, `login`, `validateuser`:
+3. В `auth.service.ts` реализуем методы `registration`, `generateToken`, `login`, `validateuser`, `verifyToken`:
    1. `registration(userDto: CreateUserDto)` - проверяем есть ли такой юзер, если нет, то хэшируем пароль и создаём его, а также генерируем токен;
    2. `generateToken(user: User)` - генерирует токен;
    3. `login(userDto: CreateUserDto)` - авторизация, после успешной авторизации генерируется токен;
    4. `validateUser(userDto: CreateUserDto)` - проверяет есть ли такой юзер в БД, затем сравнивает пароли;
+   5. `verifyToken(authHeader)` - проверка токена из заголовка;
 
     ```TypeScript
    //TypeScript
@@ -1043,52 +1045,50 @@
             }
             throw new UnauthorizedException({message: 'Неправильный email или пароль'})
         }
+   	verifyToken(authHeader: string){
+	        try {
+	            //Вытаскиваем Authorization из header запроса
+	            const bearer = authHeader.split(' ')[0]
+	            const token = authHeader.split(' ')[1]
+	            //Если тип токена не Bearer или токена нет, то ошибка
+	            if (bearer !=='Bearer' || !token){
+	                throw new UnauthorizedException({message: 'Пользователь не авторизован'})
+	            }
+	            //Проверяем токен, если токен невалидный, то ошибка, если валидный - данные.
+	            return this.jwtService.verify(token);
+	        }
+	        catch (e) {
+	            throw new UnauthorizedException({message: 'Пользователь не авторизован'})
+	        }
+	    }
     }
     ```
 ### Создание Guard для ограничения доступа неавторизированным пользователям
 
 Благодаря гвардам можно запрещать доступ к эндпоинтам по какому-либо условию.
 
-1. В папке `auth` создадим гвард `jwt-auth.guard.ts`. Класс должен быть инжектируемым (декоратор `@Injectable`). Также этот класс должен имплементировать интерфейс `CanActivate`. В качестве аргументов эта функция принимает `context`. Суть этой функции в том, что когда она возвращает `false` - доступ **запрещён**, `true` - **разрешён**. Для работы с JWT необходимо в конструкторе класса инициализировать `JwtService`:
+1. В папке `auth` создадим гвард `jwt-auth.guard.ts`. Класс должен быть инжектируемым (декоратор `@Injectable`). Также этот класс должен имплементировать интерфейс `CanActivate`. В качестве аргументов эта функция принимает `context`. Суть этой функции в том, что когда она возвращает `false` - доступ **запрещён**, `true` - **разрешён**.
 
     ```TypeScript
    //TypeScript
     //📁src/auth/jwt-auth.guard.ts
-    
-    import {CanActivate, ExecutionContext, Injectable, UnauthorizedException} from "@nestjs/common";
-    import {Observable} from "rxjs";
-    import {JwtService} from "@nestjs/jwt";
-    
-    @Injectable()
-    export class JwtAuthGuard implements CanActivate {
-        constructor(private jwtService: JwtService) {
+   import {CanActivate, ExecutionContext, Injectable} from "@nestjs/common";
+   import {Observable} from "rxjs";
+   import {AuthService} from "./auth.service";
+   
+   @Injectable()
+   export class JwtAuthGuard implements CanActivate {
+        constructor(private authService: AuthService) {
         }
         canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
             const request = context.switchToHttp().getRequest()
-            try {
-                //Вытаскиваем Authorization из header запроса
-                const autHeader = request.headers.authorization;
-                const bearer = autHeader.split(' ')[0]
-                const token = autHeader.split(' ')[1]
-                //Если тип токена не Bearer или токена нет, то ошибка
-                if (bearer !=='Bearer' || !token){
-                    throw new UnauthorizedException({message: 'Пользователь не авторизован'})
-                }
-                console.log(token)
-    
-                //Проверяем токен
-                const user = this.jwtService.verify(token);
-                request.user = user;
-                return true;
-            }
-            catch (e) {
-                throw new UnauthorizedException({message: 'Пользователь не авторизован'})
-            }
+            const autHeader = request.headers.authorization;
+            return this.authService.verifyToken(autHeader)
         }
-    }
+   }
     ```
 
-2. Из `auth.module.ts` экспортируем `JwtModule` (т.к. в `JwtAuthGuard` вызывается сервис из этого модуля):
+2. Из `auth.module.ts` экспортируем `AuthService` (т.к. в Гварде вызывается сервис из этого модуля):
    <br>
    >⚠️Нам необходимо использовать только что созданный `@Guard` в модуле `User`. Т.к. модули `Auth` и `User` используются друг в друге, то получается кольцевая зависимость. Чтобы исправить эту ошибку, необходимо в модуль `Auth` импортировать `User` с помощью `forwardRef`: `forwardRef(()=>UserModule)`
     ```TypeScript
@@ -1108,7 +1108,7 @@
       controllers: [AuthController],
       imports: [
       ConfigModule.forRoot({envFilePath: '.env'}),
-    	//Для решения проблемы с кольцевой зависимостью
+      //Для решения проблемы с кольцевой зависимостью
       forwardRef(()=>UserModule),
       JwtModule.register({
         secret: process.env.SECRET_KEY,
@@ -1120,7 +1120,6 @@
       //Экспортируем 
       exports: [
           AuthService,
-          JwtModule
       ]
     })
     export class AuthModule {}
@@ -1153,7 +1152,7 @@
     export class UserModule {}
     ```
 
-   >[💡] Т.е. если необходимо импортировать модули друг в друга, необходимо это делать с помощью функции `forwardRef`.
+   >💡 Т.е. если необходимо импортировать модули друг в друга, необходимо это делать с помощью функции `forwardRef`.
 
 4. Перейдём к контроллеру `user.controller.ts`, методу `getAllUsers` добавим декоратор `@UseGuards`, который в качестве аргументов, будет принимать созданный `JwtAuthGuard`:
 
@@ -1192,3 +1191,136 @@
     ```
 
 5. Теперь для того, чтобы получить доступ к эндпоинту `localhost:4001/users` с методом GET необходимо в `Headers` указывать `Authorization` c токеном.
+
+### Roles Guard для ограничения доступа по ролям. Создание собственного декоратора
+1. Создадим декоратор `roles-auth.decorator.ts`. `ROLE_KEY` - константа, по которой мы сможем обращаться к декоратору из Гварда:
+
+    ```tsx
+    //📁src/auth/roles-auth.decorator.ts
+    
+    import {SetMetadata} from "@nestjs/common";
+    
+    export const ROLE_KEY = 'role'
+    
+    //Декоратор в качестве аргумента принимает строку с ролью
+    export const Role = (role: string)=> SetMetadata(ROLE_KEY, role)
+    ```
+
+2. Создадим гвард `roles-guard.ts`. Импортируем константу `ROLE_KEY`, для того, чтобы вытащить значение из декоратора и использовать его. В конструкторе класса необходимо инициализировать `private reflector: Reflector`. С помощью него и константы можем вытащить значение, которое передадим декоратору в качестве аргументов:
+
+    ```tsx
+    //📁src/auth/roles-guard.ts
+    
+    import {CanActivate, ExecutionContext, ForbiddenException, Injectable} from "@nestjs/common";
+    import {Reflector} from "@nestjs/core";
+    import {ROLE_KEY} from "./roles-auth.decorator";
+    import {UserService} from "../user/user.service";
+    import {AuthService} from "./auth.service";
+    
+    @Injectable()
+    export class RolesGuard implements CanActivate {
+        constructor(private authService: AuthService, private userService: UserService, private reflector: Reflector) {
+        }
+    
+        async canActivate(context: ExecutionContext): Promise<boolean> {
+    		//С помощью ключа и рефлектора достаём значение, которое передадим декоратору в качестве аргументов
+            const requiredRole = this.reflector.getAllAndOverride(ROLE_KEY, [context.getHandler(), context.getClass()])
+    
+            if (!requiredRole) {
+                return true;
+            }
+    
+            const request = context.switchToHttp().getRequest();
+            //Вытаскиваем Authorization из header запроса
+            const authHeader = request.headers.authorization;
+    		//Проверяем токен
+            const user = this.authService.verifyToken(authHeader)
+    		//Проверяем в БД, есть ли у такого юзера требуемая роль
+            const accessIsAllowed = await this.userService.verifyUserRole(user.email, requiredRole)
+    
+            if (!accessIsAllowed) {
+                throw new ForbiddenException({message: 'Доступ ограничен'})
+            }
+            return true;
+        }
+    }
+    ```
+
+3. Для того, чтобы проверить есть ли у юзера такая роль, в в `user.service.ts` добавим метод `verifyUserRole(email: string, neededRole: string)`:
+
+    ```tsx
+    //📁src/user/user.service.ts
+    import { Injectable } from '@nestjs/common';
+    import {InjectModel} from "@nestjs/sequelize";
+    import {User} from "./user.model";
+    import {CreateUserDto} from "./dto/create-user.dto";
+    import {RolesService} from "../roles/roles.service";
+    import {Roles} from "../roles/roles.model";
+    
+    @Injectable()
+    export class UserService {
+        constructor(@InjectModel(User) private userRepository: typeof User, private roleService: RolesService) {}
+    
+        async getAllUsers(){
+            const users = this.userRepository.findAll({include: {all: true}});
+            return users;
+        }
+    
+        async createUser(dto: CreateUserDto){
+            const user = await this.userRepository.create(dto)
+            const role = await this.roleService.getRoleByValue('USER');
+            await user.$set('roles', role.id);
+            user.roles = role; //Костыль, чтобы в возвращаем объекте была роль
+            return user;
+        }
+    
+        async getUserByEmail(email: string){
+            const user = await this.userRepository.findOne({where: {email: email}, include: {all: true}});
+            return user;
+        }
+    
+        async verifyUserRole(email: string, neededRole: string){
+            return await this.userRepository.findOne({where: {email: email}, include: { model: Roles, required: true, where: {role: neededRole}}})
+        }
+    }
+    ```
+
+4. Перейдём в `user.controller.ts`, и установим написанный гвард и декоратор для метода `getAllUsers`. С помощью `@Role` - укажем для какой роли будет доступен эндпоинт. После чего добавляем наш гвард с помощью `@UseGuards(RolesGuard)`:
+
+    ```tsx
+    //📁src/user/user.controller.ts
+    
+    import {Body, Controller, Get, Post, UseGuards} from '@nestjs/common';
+    import {UserService} from "./user.service";
+    import {CreateUserDto} from "./dto/create-user.dto";
+    import {ApiBearerAuth, ApiOperation, ApiResponse, ApiTags} from "@nestjs/swagger";
+    import {User} from "./user.model";
+    import {JwtAuthGuard} from "../auth/jwt-auth.guard";
+    import {Role} from "../auth/roles-auth.decorator";
+    import {RolesGuard} from "../auth/roles.guard";
+    
+    @ApiTags('Пользователи')
+    @Controller('users')
+    export class UserController {
+        constructor(private readonly userService: UserService) {
+        }
+    
+        @ApiOperation({summary: 'Создание пользователя'})
+        @ApiResponse({status: 200, type: User})
+        @Post()
+        createUser(@Body() userDto: CreateUserDto) {
+            return this.userService.createUser(userDto)
+        }
+    
+        @ApiOperation({summary: 'Получить список пользователей'})
+        @ApiResponse({status: 200, type: [User]})
+        @ApiBearerAuth()
+        //@UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Get()
+        getAllUsers() {
+            return this.userService.getAllUsers()
+        }
+    }
+    ```

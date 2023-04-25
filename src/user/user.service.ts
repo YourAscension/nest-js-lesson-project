@@ -3,6 +3,7 @@ import {InjectModel} from "@nestjs/sequelize";
 import {User} from "./user.model";
 import {CreateUserDto} from "./dto/create-user.dto";
 import {RolesService} from "../roles/roles.service";
+import {Roles} from "../roles/roles.model";
 
 @Injectable()
 export class UserService {
@@ -24,5 +25,9 @@ export class UserService {
     async getUserByEmail(email: string){
         const user = await this.userRepository.findOne({where: {email: email}, include: {all: true}});
         return user;
+    }
+
+    async verifyUserRole(email: string, neededRole: string){
+        return await this.userRepository.findOne({where: {email: email}, include: { model: Roles, required: true, where: {role: neededRole}}})
     }
 }

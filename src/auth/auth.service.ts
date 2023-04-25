@@ -45,4 +45,22 @@ export class AuthService {
         }
         throw new UnauthorizedException({message: 'Неправильный email или пароль'})
     }
+
+    verifyToken(authHeader: string){
+        try {
+            //Вытаскиваем Authorization из header запроса
+            const bearer = authHeader.split(' ')[0]
+            const token = authHeader.split(' ')[1]
+            //Если тип токена не Bearer или токена нет, то ошибка
+            if (bearer !=='Bearer' || !token){
+                throw new UnauthorizedException({message: 'Пользователь не авторизован'})
+            }
+            //Проверяем токен, если токен невалидный, то ошибка, если валидный - данные.
+            return this.jwtService.verify(token);
+        }
+        catch (e) {
+            throw new UnauthorizedException({message: 'Пользователь не авторизован'})
+        }
+    }
 }
+
