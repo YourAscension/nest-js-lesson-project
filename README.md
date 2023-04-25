@@ -25,6 +25,7 @@
       2) [JWT, авторизация, регистрация, генерирование токена](#jwt-авторизация-регистрация-генерирование-токена)
    3) [Создание Guard для ограничения доступа неавторизованным пользователям](#создание-guard-для-ограничения-доступа-неавторизированным-пользователям)
    4) [Roles Guard для ограничения доступа по ролям. Создание собственного декоратора](#roles-guard-для-ограничения-доступа-по-ролям-создание-собственного-декоратора)
+   5) [Раздача ролей и банов](#раздача-ролей-и-банов)
 <hr>
 
 ## Создание проекта
@@ -1321,6 +1322,164 @@
         @Get()
         getAllUsers() {
             return this.userService.getAllUsers()
+        }
+    }
+    ```
+
+### Раздача ролей и банов
+1. В `user.controller.ts` создадим 2 эндпоинта **POST** запросами: `‘/role’` и ‘`/ban’`:
+
+    ```tsx
+    //📁src/user/user.controller.ts
+    
+    import {Body, Controller, Get, Post, UseGuards} from '@nestjs/common';
+    import {UserService} from "./user.service";
+    import {CreateUserDto} from "./dto/create-user.dto";
+    import {ApiBearerAuth, ApiOperation, ApiResponse, ApiTags} from "@nestjs/swagger";
+    import {User} from "./user.model";
+    import {JwtAuthGuard} from "../auth/jwt-auth.guard";
+    import {Role} from "../auth/roles-auth.decorator";
+    import {RolesGuard} from "../auth/roles.guard";
+    import {AddRoleDto} from "./dto/add-role.dto";
+    import {BanUserDto} from "./dto/ban-user.dto";
+    
+    @ApiTags('Пользователи')
+    @Controller('users')
+    export class UserController {
+        constructor(private readonly userService: UserService) {
+        }
+    
+        @ApiOperation({summary: 'Создание пользователя'})
+        @ApiResponse({status: 200, type: User})
+        @Post()
+        createUser(@Body() userDto: CreateUserDto) {
+            return this.userService.createUser(userDto)
+        }
+    
+        @ApiOperation({summary: 'Получить список пользователей'})
+        @ApiResponse({status: 200, type: [User]})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Get()
+        getAllUsers() {
+            return this.userService.getAllUsers()
+        }
+    
+        @ApiOperation({summary: 'Выдать роль'})
+        @ApiResponse({status: 200})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Post('/role')
+        addRole(@Body() dto: AddRoleDto) {
+            return this.userService.addRole(dto)
+        }
+        @ApiOperation({summary: 'Забанить пользователя'})
+        @ApiResponse({status: 200})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Post('/ban')
+        ban(@Body() dto: BanUserDto) {
+            return this.userService.ban(dto)
+        }
+    }
+    ```
+
+2. Создадим 2 dto:
+
+    ```tsx
+    //📁src/user/dto/add-role.dto.ts
+    
+    import {ApiProperty} from "@nestjs/swagger";
+    
+    export class AddRoleDto {
+        @ApiProperty({example: 'USER', description: 'Название роли'})
+        readonly value: string;
+        @ApiProperty({example: 1, description: 'ID пользователя'})
+        readonly userId: number;
+    }
+    ```
+
+    ```tsx
+    //📁src/user/dto/ban-user.dto.ts
+    
+    import {ApiProperty} from "@nestjs/swagger";
+    
+    export class BanUserDto {
+        @ApiProperty({example: 1, description: 'ID пользователя'})
+        readonly userId: number;
+    }
+    ```
+
+3. В `user.service.ts` создадим методы `addRole(dto: **AddRoleDto**)` и `ban(dto: **BanUserDto**)`:
+
+    ```tsx
+    //📁src/user/dto/user.service.ts
+    
+    import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
+    import {InjectModel} from "@nestjs/sequelize";
+    import {User} from "./user.model";
+    import {CreateUserDto} from "./dto/create-user.dto";
+    import {RolesService} from "../roles/roles.service";
+    import {Roles} from "../roles/roles.model";
+    import {AddRoleDto} from "./dto/add-role.dto";
+    import {BanUserDto} from "./dto/ban-user.dto";
+    
+    @Injectable()
+    export class UserService {
+        constructor(@InjectModel(User) private userRepository: typeof User, private roleService: RolesService) {
+        }
+    
+        async getAllUsers() {
+            const users = this.userRepository.findAll({include: {all: true}});
+            return users;
+        }
+    
+        async createUser(dto: CreateUserDto) {
+            const user = await this.userRepository.create(dto)
+            const role = await this.roleService.getRoleByValue('USER');
+            await user.$set('roles', role.id);
+            user.roles = role; //Костыль, чтобы в возвращаем объекте была роль
+            return user;
+        }
+    
+        async getUserByEmail(email: string) {
+            const user = await this.userRepository.findOne({where: {email: email}, include: {all: true}});
+            return user;
+        }
+    
+        async verifyUserRole(email: string, neededRole: string) {
+            return await this.userRepository.findOne({
+                where: {email: email},
+                include: {model: Roles, required: true, where: {role: neededRole}}
+            })
+        }
+    
+        async addRole(dto: AddRoleDto) {
+            const user = await this.userRepository.findByPk(dto.userId);
+            const role = await this.roleService.getRoleByValue(dto.value);
+            if (role && user) {
+                console.log(role.id)
+                await user.update({roleId: role.id})
+                return
+            }
+            throw new HttpException('Пользователь или роль не найдены', HttpStatus.NOT_FOUND)
+    
+        }
+    
+        async ban(dto: BanUserDto) {
+            const user = await this.userRepository.findByPk(dto.userId);
+            if (user) {
+                user.banned = true;
+                await user.save();
+                return
+            }
+            throw new HttpException('Пользователь не найден', HttpStatus.NOT_FOUND)
         }
     }
     ```

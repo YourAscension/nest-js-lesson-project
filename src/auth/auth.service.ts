@@ -53,7 +53,7 @@ export class AuthService {
             const token = authHeader.split(' ')[1]
             //Если тип токена не Bearer или токена нет, то ошибка
             if (bearer !=='Bearer' || !token){
-                throw new UnauthorizedException({message: 'Пользователь не авторизован'})
+                throw new Error()
             }
             //Проверяем токен, если токен невалидный, то ошибка, если валидный - данные.
             return this.jwtService.verify(token);
