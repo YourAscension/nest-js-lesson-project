@@ -11,7 +11,9 @@ type FormattedValidationErrorType = {
 @Injectable()
 export class ValidationPipe<T> implements PipeTransform<T> {
     async transform<T>(value: T, metadata: ArgumentMetadata): Promise<T | never> {
-        const obj: ValidationError[] = plainToClass(metadata.metatype, value)
+
+        const obj: ValidationError = plainToClass(metadata.metatype, value)
+        console.log(obj)
         const errors: ValidationError[] = await validate(obj)
 
         if (errors.length) {

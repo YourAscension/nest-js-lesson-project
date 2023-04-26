@@ -6,6 +6,7 @@ import {UserModule} from "../user/user.module";
 import {Roles} from "../roles/roles.model";
 import {RolesModule} from "../roles/roles.module";
 import {configModule} from "../common/config.root";
+import {Posts} from "../posts/posts.model";
 
 @Module({
     imports: [
@@ -19,7 +20,7 @@ import {configModule} from "../common/config.root";
             database: process.env.DB_DATABASE,
             autoLoadModels: true,
             synchronize: true,
-            models: [User, Roles]
+            models: [User, Roles, Posts]
         }),
         UserModule,
         RolesModule

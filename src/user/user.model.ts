@@ -1,6 +1,7 @@
-import {Table, Column, Model, PrimaryKey, DataType, BelongsTo, ForeignKey} from 'sequelize-typescript';
+import {Table, Column, Model, PrimaryKey, DataType, BelongsTo, ForeignKey, HasMany} from 'sequelize-typescript';
 import {ApiProperty} from "@nestjs/swagger";
 import {Roles} from "../roles/roles.model";
+import {Posts} from "../posts/posts.model";
 
 interface UserCreationAttribute {
     email: string;
@@ -30,4 +31,7 @@ export class User extends Model<User, UserCreationAttribute> {
     @ApiProperty({description: 'Роль'})
     @BelongsTo(() => Roles, { onDelete: 'cascade'})
     roles: Roles
+
+    @HasMany(()=>Posts)
+    posts: Posts[]
 }
