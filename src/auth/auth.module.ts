@@ -4,13 +4,13 @@ import { AuthController } from './auth.controller';
 import {UserModule} from "../user/user.module";
 import {JwtModule} from "@nestjs/jwt";
 import * as process from "process";
-import {ConfigModule} from "@nestjs/config";
+import {configModule} from "../common/config.root";
 
 @Module({
   providers: [AuthService],
   controllers: [AuthController],
   imports: [
-  ConfigModule.forRoot({envFilePath: '.env'}),
+  configModule,
   forwardRef(()=>UserModule),
   JwtModule.register({
     secret: process.env.SECRET_KEY,

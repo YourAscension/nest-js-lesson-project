@@ -56,7 +56,7 @@
     import * as process from "process";
 
     @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env'})]
+        imports: [ConfigModule.forRoot({envFilePath: '.env.development'})]
     })
     export class DatabaseModule {}
     
@@ -72,7 +72,7 @@
     import {SequelizeModule} from "@nestjs/sequelize";
     
     @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env'}),
+        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -204,7 +204,7 @@
     import {UserModule} from "../user/user.module";
     
     @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env'}),
+        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -562,7 +562,7 @@
    import {Roles} from "../roles/roles.model";
    
    @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env'}),
+        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -979,7 +979,7 @@
       imports: [UserModule,
       
       JwtModule.register({
-      ConfigModule.forRoot({envFilePath: '.env'}),
+      ConfigModule.forRoot({envFilePath: '.env.development'}),
         secret: process.env.SECRET_KEY,
         signOptions: {
           expiresIn: '24h'
@@ -1108,7 +1108,7 @@
       providers: [AuthService],
       controllers: [AuthController],
       imports: [
-      ConfigModule.forRoot({envFilePath: '.env'}),
+      ConfigModule.forRoot({envFilePath: '.env.development'}),
       //Для решения проблемы с кольцевой зависимостью
       forwardRef(()=>UserModule),
       JwtModule.register({

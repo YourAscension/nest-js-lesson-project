@@ -5,9 +5,11 @@ import {User} from "../user/user.model";
 import {UserModule} from "../user/user.module";
 import {Roles} from "../roles/roles.model";
 import {RolesModule} from "../roles/roles.module";
+import {configModule} from "../common/config.root";
 
 @Module({
-    imports: [ConfigModule.forRoot({envFilePath: '.env'}),
+    imports: [
+        configModule,
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,

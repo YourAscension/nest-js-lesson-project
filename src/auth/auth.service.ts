@@ -30,7 +30,7 @@ export class AuthService {
         const payload = {email: user.email, id: user.id, role: user.roles.role}
         console.log(payload)
         return {
-            token: this.jwtService.sign(payload)
+            token: this.jwtService.sign(payload, {})
         }
     }
 

@@ -7,6 +7,8 @@ async function bootstrap() {
     const PORT = process.env.PORT || 3001
     const app = await NestFactory.create(AppModule);
 
+    app.setGlobalPrefix('api')
+
     const config = new DocumentBuilder()
         .setTitle('Тестовое приложение')
         .setDescription('Документация REST API')
