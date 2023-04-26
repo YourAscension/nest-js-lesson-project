@@ -1416,7 +1416,7 @@
     }
     ```
 
-3. В `user.service.ts` создадим методы `addRole(dto: **AddRoleDto**)` и `ban(dto: **BanUserDto**)`:
+3. В `user.service.ts` создадим методы `addRole(dto: AddRoleDto)` и `ban(dto: BanUserDto)`:
 
     ```tsx
     //📁src/user/dto/user.service.ts
