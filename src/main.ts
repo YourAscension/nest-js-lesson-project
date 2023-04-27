@@ -10,7 +10,7 @@ async function bootstrap() {
     app.setGlobalPrefix('api')
 
     const config = new DocumentBuilder()
-        .setTitle('Тестовое приложение')
+        .setTitle('Учебное приложение')
         .setDescription('Документация REST API')
         .setVersion('1.0.0')
         .addTag('YourAscension')

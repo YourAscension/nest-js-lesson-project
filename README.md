@@ -1,4 +1,4 @@
-# Тестовый проект Nest JS
+# Учебный проект Nest JS
 
 1. [Создание проекта](#создание-проекта)
 2. [Подключение к БД (создание модуля для БД)](#подключение-к-бд-создание-модуля-для-бд)
@@ -26,53 +26,54 @@
    3) [Создание Guard для ограничения доступа неавторизованным пользователям](#создание-guard-для-ограничения-доступа-неавторизированным-пользователям)
    4) [Roles Guard для ограничения доступа по ролям. Создание собственного декоратора](#roles-guard-для-ограничения-доступа-по-ролям-создание-собственного-декоратора)
    5) [Раздача ролей и банов](#раздача-ролей-и-банов)
+7. [Валидация. Pipes и class-validator](#валидация-pipes-и-class-validator)
+8. [Чем отличается pipe от middleware в NestJS](#чем-отличается-pipe-от-middleware-в-nestjs)
+9. [Создание модулей Posts и Files](#создание-модулей-posts-и-files)
+   1) [Модуль Posts](#модуль-posts)
+   2) [Модуль Files](#модуль-files)
+   3) [Serve static](#serve-static)
 <hr>
 
 ## Создание проекта
 1.  Создаём проект с помощью __NEST CLI__ `nest new .` или `nest new *название проекта*`;
 2. Устанавливаем __Sequelize__ и __oracledb__ (библиотека для нужной БД)<br>`npm install --save @nestjs/sequelize sequelize sequelize-typescript oracledb`<br>`npm install --save-dev @types/sequelize`
-3. Устанавливаем библиотеку для работы с конфигами `npm install @nestjs/config` и создаём файл `.env`  
+3. Устанавливаем библиотеки: __@nestjs/config__ - для работы с конфигами и __cross-env__ - для указания переменных в наименовании скрипта `npm install @nestjs/config cross-env.` Создаём файлы `.env.development` и `.env.production`.
     ```
-    //📁.env
-    PORT=4001  
-    DB_DATABASE="XE"  
-    DB_HOST="localhost"
-    DB_USERNAME="yourascension"
-    DB_PASSWORD="123456"
-    DB_PORT=1521
-    SECRET_KEY="moonshine"
+   //📁.env.development
+   PORT=4001
+   DB_DATABASE="XE"
+   DB_HOST="localhost"
+   DB_USERNAME="yourascension"
+   DB_PASSWORD="123456"
+   DB_PORT=1521
+   SECRET_KEY="moonshine"
     ```
+4. Переходим в `package.json` и указываем переменные в скриптах: `"start": "cross-env NODE_ENV=production nest start"` и `"start:dev": "cross-env NODE_ENV=development nest start --watch"` для того, чтобы во время разработки использовался файл `.env.development`, а для продакшена `.env.production`.
+5. Создаём файл `config.root.ts` с настройками конфига.
+    ```TypeScript
+   //TypeScript
+   //📁src/common/config.root.ts
+   import {ConfigModule} from "@nestjs/config";
+   import * as process from "process";
+   
+   export const configModule =  ConfigModule.forRoot({envFilePath: `.env.${process.env.NODE_ENV}`,
+   isGlobal: true})
+   ```
 <hr/>
 
 ## Подключение к БД (создание модуля для БД)
 1. С помощью __Nest CLI__ создадим модуль для БД. `nest generate module database`;
-2. В модуль `database` импортируем модуль для работы с конфигами и указываем путь к `.env` файлу 
+2. Также импортируем модуль __Sequelize__ для настройки подключения к БД:
     ```TypeScript
    //TypeScript
    //📁src/database/database.module.ts
+   import { Module } from '@nestjs/common';
+   import {configModule} from "../common/config.root";
+   import {SequelizeModule} from "@nestjs/sequelize";
    
-    import { Module } from '@nestjs/common';
-    import {ConfigModule} from "@nestjs/config";
-    import * as process from "process";
-
-    @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env.development'})]
-    })
-    export class DatabaseModule {}
-    
-    console.log(process.env.PORT);
-    ```
-3. Также импортируем модуль `Sequelize` для настройки подключения к БД
-    ```TypeScript
-   //TypeScript
-   //📁src/database/database.module.ts
-   
-    import { Module } from '@nestjs/common';
-    import {ConfigModule} from "@nestjs/config";
-    import {SequelizeModule} from "@nestjs/sequelize";
-    
-    @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
+   @Module({
+        imports: [
+        configModule,
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -84,10 +85,10 @@
             synchronize: true,
             models: []
         })],
-    })
-    export class DatabaseModule {}
+   })
+   export class DatabaseModule {}
    ```
-4. Для того чтобы можно было работать с БД в других модулях, в модуль `app.module.ts` импортируем `database.module.ts`
+3. Для того чтобы можно было работать с БД в других модулях, в модуль `app.module.ts` импортируем `database.module.ts`
     ```TypeScript
    //TypeScript
    //📁src/app.module.ts
@@ -101,7 +102,7 @@
     })
     export class AppModule {}
    ```
-   >[💡] Т.к. модуль для работы с конфигом `.env` был импортирован в `database.module.ts`, то его функционал также доступен в `app.module.ts`
+   >💡 Т.к. модуль для работы с конфигом был импортирован в `database.module.ts`, то его функционал также доступен в `app.module.ts`:
     ```TypeScript
    //TypeScript
    //📁src/main.ts
@@ -198,13 +199,14 @@
     //TypeScript
    //📁src/database/database.module.ts
     import { Module } from '@nestjs/common';
-    import {ConfigModule} from "@nestjs/config";
+    import {configModule} from "../common/config.root";
     import {SequelizeModule} from "@nestjs/sequelize";
     import {User} from "../user/user.model";
     import {UserModule} from "../user/user.module";
     
     @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
+        imports: [
+        configModule,
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -368,7 +370,7 @@
    const app = await NestFactory.create(AppModule);
    
        const config = new DocumentBuilder()
-           .setTitle('Тестовое приложение')
+           .setTitle('Учебное приложение')
            .setDescription('Документация REST API')
            .setVersion('1.0.0')
            .addTag('YourAscension')
@@ -555,14 +557,15 @@
     //TypeScript
    //📁src/database/database.module.ts
    import {Module} from '@nestjs/common';
-   import {ConfigModule} from "@nestjs/config";
+   import {configModule} from "../common/config.root";
    import {SequelizeModule} from "@nestjs/sequelize";
    import {User} from "../user/user.model";
    import {UserModule} from "../user/user.module";
    import {Roles} from "../roles/roles.model";
    
    @Module({
-        imports: [ConfigModule.forRoot({envFilePath: '.env.development'}),
+        imports: [
+        configModule,
         SequelizeModule.forRoot({
             dialect: 'oracle',
             host: process.env.DB_HOST,
@@ -635,6 +638,33 @@
    
         @BelongsTo(() => Roles, {onDelete: 'cascade'})
         roles: Roles
+   }
+   ```
+2. А в `roles.model.ts` укажем, что роль может иметь множество юзеров с помощью `@HasMany(()=>User)users: User[]`:
+    ```TypeScript
+    //TypeScript
+   //📁src/roles/roles.model.ts
+   import {Table, Column, Model, DataType} from 'sequelize-typescript';
+   import {ApiProperty} from "@nestjs/swagger";
+   import {User} from "../user/user.model";
+   
+   //Создаём интерфейс, в котором указываем какие свойства будем указывать вручную при создании роли
+   interface RoleCreationAttribute {
+        role: string
+   }
+   
+   @Table({tableName: 'roles-nest', timestamps: false})
+   export class Roles extends Model<Roles, RoleCreationAttribute> {
+        @ApiProperty({example: '1', description: 'ID роли'})
+        @Column({type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true, allowNull: false})
+        id: number;
+        @ApiProperty({example: 'Администратор', description: 'Название роли'})
+        @Column({type: DataType.STRING, unique: true, allowNull: false})
+        role: string;
+   
+        @ApiProperty({description: 'Одна роль имеет множество пользователей'})
+        @HasMany(()=>User)
+        users: User[]
    }
    ```
 ### Создание сервиса для Roles
@@ -862,7 +892,6 @@
 #### Получаем доступ к сервису User из сервиса Auth
 1. В `auth.service.ts` реализуем методы для **логина** и **регистрации**. Нужно будет работать с данными юзерами, поэтому необходимо получить доступ к `user.service.ts`
    1) В `auth.service.ts` в конструкторе инициализируем переменную `userService`:
-
     ```TypeScript
    //TypeScript
     //📁src/user/user.service.ts
@@ -882,9 +911,7 @@
         }
     }
     ```
-
 2. Переходим в `auth.module.ts`, в `imports` указываем модуль, в котором находится необходимый метод. (В данном случае `UserService` находится в `UserModule`, поэтому импоритруем его):
-
     ```TypeScript
    //TypeScript
     //📁src/auth/auth.module.ts
@@ -900,9 +927,7 @@
     })
     export class AuthModule {}
     ```
-
 3. Теперь переходим к модулю `user.module.ts` и укажем в `exports` сервис, который нужно экспортировать. (В данном случае `UserService`):
-
     ```TypeScript
    //TypeScript
     //📁src/user/user.module.ts
@@ -923,9 +948,7 @@
     export class UserModule {}
     ```
 #### JWT, авторизация, регистрация, генерирование токена
-
 1. Для начала необходимо реализовать метод для проверки существования пользователя. Перейдём в `user.service.ts` и реализуем метод `getUserByEmail`:
-
     ```TypeScript
    //TypeScript
     //📁src/user/user.service.ts
@@ -959,9 +982,7 @@
         }
     }
     ```
-
 2. В `auth.module.ts` импортируем **`JwtModule.register`**, указываем секретный ключ и срок годности токена:
-
     ```TypeScript
    //TypeScript
     //📁src/auth/auth.module.ts
@@ -971,15 +992,15 @@
     import {UserModule} from "../user/user.module";
     import {JwtModule} from "@nestjs/jwt";
     import * as process from "process";
-    import {ConfigModule} from "@nestjs/config";
+    import {configModule} from "../common/config.root";
     
     @Module({
       providers: [AuthService],
       controllers: [AuthController],
-      imports: [UserModule,
-      
+      imports: [
+      configModule,
+      UserModule,
       JwtModule.register({
-      ConfigModule.forRoot({envFilePath: '.env.development'}),
         secret: process.env.SECRET_KEY,
         signOptions: {
           expiresIn: '24h'
@@ -989,7 +1010,6 @@
     })
     export class AuthModule {}
     ```
-
 3. В `auth.service.ts` реализуем методы `registration`, `generateToken`, `login`, `validateuser`, `verifyToken`:
    1. `registration(userDto: CreateUserDto)` - проверяем есть ли такой юзер, если нет, то хэшируем пароль и создаём его, а также генерируем токен;
    2. `generateToken(user: User)` - генерирует токен;
@@ -1065,11 +1085,8 @@
     }
     ```
 ### Создание Guard для ограничения доступа неавторизированным пользователям
-
 Благодаря гвардам можно запрещать доступ к эндпоинтам по какому-либо условию.
-
 1. В папке `auth` создадим гвард `jwt-auth.guard.ts`. Класс должен быть инжектируемым (декоратор `@Injectable`). Также этот класс должен имплементировать интерфейс `CanActivate`. В качестве аргументов эта функция принимает `context`. Суть этой функции в том, что когда она возвращает `false` - доступ **запрещён**, `true` - **разрешён**.
-
     ```TypeScript
    //TypeScript
     //📁src/auth/jwt-auth.guard.ts
@@ -1088,7 +1105,6 @@
         }
    }
     ```
-
 2. Из `auth.module.ts` экспортируем `AuthService` (т.к. в Гварде вызывается сервис из этого модуля):
    <br>
    >⚠️Нам необходимо использовать только что созданный `@Guard` в модуле `User`. Т.к. модули `Auth` и `User` используются друг в друге, то получается кольцевая зависимость. Чтобы исправить эту ошибку, необходимо в модуль `Auth` импортировать `User` с помощью `forwardRef`: `forwardRef(()=>UserModule)`
@@ -1102,13 +1118,13 @@
     import {UserModule} from "../user/user.module";
     import {JwtModule} from "@nestjs/jwt";
     import * as process from "process";
-    import {ConfigModule} from "@nestjs/config";
+    import {configModule} from "../common/config.root";
     
     @Module({
       providers: [AuthService],
       controllers: [AuthController],
       imports: [
-      ConfigModule.forRoot({envFilePath: '.env.development'}),
+      configModule,
       //Для решения проблемы с кольцевой зависимостью
       forwardRef(()=>UserModule),
       JwtModule.register({
@@ -1125,9 +1141,7 @@
     })
     export class AuthModule {}
     ```
-
 3. `@Guard` будем использовать в модуле `User`. Как было сказано выше, между модулями образуется кольцевая зависимость, поэтому `AuthModule` необходимо импортировать в модуль `User` с помощью `forwardRef`: `forwardRef(()=>AuthModule)`:
-
     ```TypeScript
    //TypeScript
     //📁src/user/user.module.ts
@@ -1152,13 +1166,10 @@
     })
     export class UserModule {}
     ```
-
    >💡 Т.е. если необходимо импортировать модули друг в друга, необходимо это делать с помощью функции `forwardRef`.
-
 4. Перейдём к контроллеру `user.controller.ts`, методу `getAllUsers` добавим декоратор `@UseGuards`, который в качестве аргументов, будет принимать созданный `JwtAuthGuard`:
-
     ```TypeScript
-   //TypeScript
+    //TypeScript
     //📁src/user/user.controller.ts
     
     import {Body, Controller, Get, Post, UseGuards} from '@nestjs/common';
@@ -1190,13 +1201,11 @@
         }
     }
     ```
-
 5. Теперь для того, чтобы получить доступ к эндпоинту `localhost:4001/users` с методом GET необходимо в `Headers` указывать `Authorization` c токеном.
-
 ### Roles Guard для ограничения доступа по ролям. Создание собственного декоратора
 1. Создадим декоратор `roles-auth.decorator.ts`. `ROLE_KEY` - константа, по которой мы сможем обращаться к декоратору из Гварда:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/auth/roles-auth.decorator.ts
     
     import {SetMetadata} from "@nestjs/common";
@@ -1206,10 +1215,9 @@
     //Декоратор в качестве аргумента принимает строку с ролью
     export const Role = (role: string)=> SetMetadata(ROLE_KEY, role)
     ```
-
 2. Создадим гвард `roles-guard.ts`. Импортируем константу `ROLE_KEY`, для того, чтобы вытащить значение из декоратора и использовать его. В конструкторе класса необходимо инициализировать `private reflector: Reflector`. С помощью него и константы можем вытащить значение, которое передадим декоратору в качестве аргументов:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/auth/roles-guard.ts
     
     import {CanActivate, ExecutionContext, ForbiddenException, Injectable} from "@nestjs/common";
@@ -1246,10 +1254,9 @@
         }
     }
     ```
-
 3. Для того, чтобы проверить есть ли у юзера такая роль, в в `user.service.ts` добавим метод `verifyUserRole(email: string, neededRole: string)`:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/user/user.service.ts
     import { Injectable } from '@nestjs/common';
     import {InjectModel} from "@nestjs/sequelize";
@@ -1285,10 +1292,9 @@
         }
     }
     ```
-
 4. Перейдём в `user.controller.ts`, и установим написанный гвард и декоратор для метода `getAllUsers`. С помощью `@Role` - укажем для какой роли будет доступен эндпоинт. После чего добавляем наш гвард с помощью `@UseGuards(RolesGuard)`:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/user/user.controller.ts
     
     import {Body, Controller, Get, Post, UseGuards} from '@nestjs/common';
@@ -1325,11 +1331,10 @@
         }
     }
     ```
-
 ### Раздача ролей и банов
 1. В `user.controller.ts` создадим 2 эндпоинта **POST** запросами: `‘/role’` и ‘`/ban’`:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/user/user.controller.ts
     
     import {Body, Controller, Get, Post, UseGuards} from '@nestjs/common';
@@ -1389,10 +1394,9 @@
         }
     }
     ```
-
 2. Создадим 2 dto:
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/user/dto/add-role.dto.ts
     
     import {ApiProperty} from "@nestjs/swagger";
@@ -1404,8 +1408,8 @@
         readonly userId: number;
     }
     ```
-
-    ```tsx
+    ```TypeScript
+    //TypeScript
     //📁src/user/dto/ban-user.dto.ts
     
     import {ApiProperty} from "@nestjs/swagger";
@@ -1415,10 +1419,9 @@
         readonly userId: number;
     }
     ```
-
 3. В `user.service.ts` создадим методы `addRole(dto: AddRoleDto)` и `ban(dto: BanUserDto)`:
-
-    ```tsx
+    ```TypeScript
+     //TypeScript
     //📁src/user/dto/user.service.ts
     
     import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
@@ -1483,3 +1486,355 @@
         }
     }
     ```
+<hr/>
+
+## Валидация. Pipes и class-validator
+1. Для работы с валидацией необходимо установить 2 NPM пакета - **class-validator** для валидации и **class-transformer** для преобразования данных. `npm install class-validator class-transformer`;
+2. Реализуем валидацию для `create-user.dto.ts`. Библиотека **class-validator** предоставляет возможность осуществлять валидацию с помощьюдекораторов (пример: `@IsEmail`, `@IsString` и т.д.):
+    ```TypeScript
+    //TypeScript
+    //📁src/user/dto/create-user.dto.ts
+    
+    import {ApiProperty} from "@nestjs/swagger";
+    import {IsEmail, IsString, Length} from "class-validator";
+    
+    export class CreateUserDto {
+        @ApiProperty({example: 'test666@gmail.com', description: 'Почтовый адрес'})
+        @IsString({message: 'Должно быть строкой'})
+        @IsEmail({}, {message: 'Некорректный email'})
+        readonly email: string;
+    
+        @ApiProperty({example: 'qwerty', description: 'Пароль'})
+        @IsString({message: 'Должно быть строкой'})
+        @Length(6, 12, {message: 'Не меньше 6 и не больше 12'} )
+        readonly password: string;
+    
+        @ApiProperty({example: '1', description: 'ID роли'})
+        readonly roleId: number;
+    }
+    
+    ```
+3. Пайпы имеют 2 предназначения:
+   - Преобразование входных данных;
+   - Валидация входных данных.
+4. Создадим папку `pipes` и файл `validation.pipe.ts`. Это будет `@Injectable` класс, который имплементирует интерфейс `PipeTransform`. Внутри класса есть метод `transform` с 2 аргументами:
+   1. `value` - входящее значение непреобразованное значение (допустим `{ email: 'test666', password: 'qwerty', roleId: 'asdasd' }` )
+   2. `metadata` - тут находится информации, какое dto нужно использовать для преобразования и где находятся данные в запросе (пример: `{ metatype: [class CreateUserDto], type: 'body', data: undefined }` )
+    ```TypeScript
+    //TypeScript
+    //📁src/user/pipes/validation.pipe.ts
+    
+    import {ArgumentMetadata, Injectable, PipeTransform} from "@nestjs/common";
+    import {plainToClass} from "class-transformer";
+    import {validate, ValidationError} from "class-validator";
+    import {ValidationException} from "../exceptions/validation.exception";
+    
+    type FormattedValidationErrorType = {
+        field: string;
+        message: string;
+    }
+    
+    @Injectable()
+    export class ValidationPipe<T> implements PipeTransform<T> {
+        async transform<T>(value: T, metadata: ArgumentMetadata): Promise<T | never> {
+    				
+    				//С помощью plainToClass преобразуем данные с помощью dto из metadata.metatype
+    				//Пример значения obj: CreateUserDto { email: 'test666', password: 12, roleId: 'asdasd' }
+            const obj: ValidationError = plainToClass(metadata.metatype, value)
+            const errors: ValidationError[] = await validate(obj)
+    
+            if (errors.length) {
+    
+                const validationErrors: FormattedValidationErrorType[] = errors.reduce((acc: FormattedValidationErrorType[], validationError: ValidationError) => {
+                    Object.values(validationError.constraints).forEach(constraint => {
+                        const field = validationError.property;
+                        const message = constraint;
+                        acc.push({field, message})
+                    })
+    
+                    return acc
+                }, [])
+    
+                throw new ValidationException(validationErrors)
+            }
+            return value;
+        }
+    }
+    ```
+5. Создадим свой класс для ошибок при валидации `validation.exception.ts` в папке `exceptions`:
+    ```TypeScript
+    //TypeScript
+    //📁src/exceptions/validation.exception.ts
+    
+    import {HttpException, HttpStatus} from "@nestjs/common";
+    
+    export class ValidationException extends HttpException {
+        constructor(validationErrors) {
+            super({status: HttpStatus.BAD_REQUEST, validationErrors, message: 'Ошибка валидации'}, HttpStatus.BAD_REQUEST);
+        }
+    }
+    ```
+6. Используем пайп `ValidationPipe` в контроллере `user.controller.ts` у метода `createUser`. С помощью декоратора `@UsePipe`:
+    ```TypeScript
+    //TypeScript
+    //📁src/user/user.controller.ts
+    
+    import {Body, Controller, Get, Post, UseGuards, UsePipes} from '@nestjs/common';
+    import {UserService} from "./user.service";
+    import {CreateUserDto} from "./dto/create-user.dto";
+    import {ApiBearerAuth, ApiOperation, ApiResponse, ApiTags} from "@nestjs/swagger";
+    import {User} from "./user.model";
+    import {JwtAuthGuard} from "../auth/jwt-auth.guard";
+    import {Role} from "../auth/roles-auth.decorator";
+    import {RolesGuard} from "../auth/roles.guard";
+    import {AddRoleDto} from "./dto/add-role.dto";
+    import {BanUserDto} from "./dto/ban-user.dto";
+    import {ValidationPipe} from "../pipes/validation.pipe";
+    
+    @ApiTags('Пользователи')
+    @Controller('users')
+    export class UserController {
+        constructor(private readonly userService: UserService) {
+        }
+    
+        @ApiOperation({summary: 'Создание пользователя'})
+        @ApiResponse({status: 200, type: User})
+        @UsePipes(ValidationPipe)
+        @Post()
+        createUser(@Body() userDto: CreateUserDto) {
+            return this.userService.createUser(userDto)
+        }
+    
+        @ApiOperation({summary: 'Получить список пользователей'})
+        @ApiResponse({status: 200, type: [User]})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Get()
+        getAllUsers() {
+            return this.userService.getAllUsers()
+        }
+    
+        @ApiOperation({summary: 'Выдать роль'})
+        @ApiResponse({status: 200})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Post('/role')
+        addRole(@Body() dto: AddRoleDto) {
+            return this.userService.addRole(dto)
+        }
+        @ApiOperation({summary: 'Забанить пользователя'})
+        @ApiResponse({status: 200})
+        @ApiBearerAuth()
+        @UseGuards(JwtAuthGuard)
+        @Role('ADMIN')
+        @UseGuards(RolesGuard)
+        @Post('/ban')
+        ban(@Body() dto: BanUserDto) {
+            return this.userService.ban(dto)
+        }
+    }
+    ```
+Теперь если входящие данные не пройдут валидацию, то мы получим вот такой **ответ**:
+    ```json
+   //JSON
+    {
+      "status": 400,
+      "validationErrors": [
+        {
+          "field": "email",
+          "message": "Некорректный email"
+        },
+        {
+          "field": "password",
+          "message": "Не меньше 6 и не больше 12"
+        },
+        {
+          "field": "password",
+          "message": "Должно быть строкой"
+        }
+      ],
+      "message": "Ошибка валидации"
+    }
+    ```
+<hr/>
+
+## Чем отличается pipe от middleware в NestJS
+В NestJS middleware и pipes - это два разных механизма, которые используются для обработки запросов HTTP в приложении.
+
+**Middleware** - это функции, которые выполняются перед или после обработки запроса HTTP. Они могут выполнять различные задачи, такие как аутентификация, логирование, обработка ошибок и т.д. Middleware представляет собой функцию, которая получает три параметра: объект запроса, объект ответа и функцию `next()`. Middleware может изменять объект запроса или ответа, а также передавать управление следующему middleware в цепочке вызовов с помощью функции `next()`. Middleware может быть глобальным (для всего приложения) или локальным (для конкретного маршрута).
+
+**Pipes** - это механизм для валидации и трансформации данных, которые приходят в запросе HTTP. Они могут выполнять различные задачи, такие как проверка типов, преобразование данных, валидация и т.д. Pipe представляет собой класс с методом `transform()`, который получает входные данные и возвращает трансформированные данные или выбрасывает исключение в случае ошибки. Pipes могут быть глобальными (для всего приложения) или локальными (для конкретного маршрута).
+
+Главное отличие между middleware и pipes заключается в том, что middleware обрабатывает запросы HTTP в целом, в то время как pipes обрабатывают данные в запросе HTTP. Middleware может использоваться для различных задач, включая обработку ошибок, логирование, аутентификацию и т.д. Pipes, с другой стороны, используются для проверки и преобразования данных, которые приходят в запросе HTTP.
+
+В целом, middleware и pipes - это мощные механизмы, которые позволяют создавать гибкие и масштабируемые приложения на NestJS. Выбор конкретного механизма зависит от конкретных требований и бизнес-логики вашего приложения.
+<hr/>
+
+## Создание модулей Posts и Files
+1. Создадим модули с помощью команды `nest g resource posts` и `nest g resource files`.
+### Модуль Posts
+1. Создадим модель `posts.model.ts`:
+    ```TypeScript
+    //TypeScript
+    //📁src/posts/posts.model.ts
+    
+    import {Table, Column, Model, DataType, BelongsTo, ForeignKey} from 'sequelize-typescript';
+    import {User} from "../user/user.model";
+    
+    interface PostsCreationAttribute {
+        email: string;
+        password: string;
+        userId: number;
+        image: string;
+    }
+    
+    @Table({tableName: 'posts-nest', timestamps: false})
+    export class Posts extends Model<Posts, PostsCreationAttribute> {
+        @Column({type: DataType.INTEGER, unique: true, autoIncrement: true, primaryKey: true, allowNull: false})
+        id: number;
+        @Column({type: DataType.STRING, unique: true, allowNull: false})
+        title: string;
+        @Column({type: DataType.STRING, allowNull: false})
+        content: string;
+        @Column({type: DataType.STRING})
+        image: string;
+    
+        @ForeignKey(() => User, )
+        @Column({type: DataType.INTEGER})
+        userId: number
+    
+        @BelongsTo(() => User, { onDelete: 'cascade'})
+        users: User
+    }
+    ```
+2. В модели `user.model.ts` укажем `@HasMany(()=>Posts)posts: Posts[]`;
+3. В файле модуля `posts.module.ts` в импорте укажем `SequelizeModule.forFeature([Posts])`;
+4. В файле модуля `database.module.ts` в импорте модуля подключения **Sequelize** в массив `models` нужно добавить модель `Posts`;
+5. Создадим `create-post.dto.ts`:
+    ```TypeScript
+    //TypeScript
+    //📁src/posts/dto/create-post.dto.ts
+    
+    export class CreatePostDto {
+        readonly title: string;
+        readonly content: string;
+        readonly userId: number;
+    }
+    ```
+6. Создадим метод `createPost` в `posts.controller.ts`. В качестве аргументов он принимает dto и image. Т.к. будем загружать изображения, необходимо использовать декораторы `@UseInterceptors(FileInterceptor('image'))` и `UploadedFile()`:
+    ```TypeScript
+    //TypeScript
+    //📁src/posts/posts.controller.ts
+    
+    import {Body, Controller, Post, UploadedFile, UseInterceptors} from '@nestjs/common';
+    import { PostsService } from './posts.service';
+    import {CreatePostDto} from "./dto/create-post.dto";
+    import {FileInterceptor} from "@nestjs/platform-express";
+    
+    @Controller('posts')
+    export class PostsController {
+      constructor(private readonly postsService: PostsService) {}
+    
+      @Post()
+      @UseInterceptors(FileInterceptor('image'))
+      createPost(@Body() dto: CreatePostDto, @UploadedFile() image){
+        return this.postsService.create(dto, image)
+      }
+    }
+    ```
+7. Создадим метод `create` в `post.service.ts`. В него необходимо заинжектить модель, а также `FilesService`. (Для того, чтобы был доступ к `FilesService` в f`iles.module.ts` его необходимо экспортировать, после чего весь `FilesModule` указать в импорте `posts.module.ts`).
+    ```TypeScript
+    //TypeScript
+    //📁src/posts/posts.service.ts
+    
+    import { Injectable } from '@nestjs/common';
+    import {CreatePostDto} from "./dto/create-post.dto";
+    import {InjectModel} from "@nestjs/sequelize";
+    import {Posts} from "./posts.model";
+    import {FilesService} from "../files/files.service";
+    
+    @Injectable()
+    export class PostsService {
+    
+        constructor(@InjectModel(Posts) private postRepository: typeof Posts, private filesService: FilesService) {}
+        async create(dto: CreatePostDto, image:any) {
+            const fileName = await this.filesService.createFile(image)
+            const post = await this.postRepository.create({...dto, image: fileName})
+            return post;
+            
+        }
+    }
+    ```
+### Модуль Files
+1. В `files.service.ts` создаём метод `createFile`. Для того, чтобы сгенерировать уникальное имя файла будем использовать пакет uuid. `npm install uuid`.
+    ```TypeScript
+    //TypeScript
+    //📁src/files/files.service.ts
+    
+    import {HttpException, HttpStatus, Injectable} from '@nestjs/common';
+    import * as path from 'path'
+    import * as fs from 'fs'
+    import * as uuid from 'uuid'
+    
+    @Injectable()
+    export class FilesService {
+    
+        async createFile(file): Promise<string> {
+            try {
+    			//Создаём имя файла
+                const fileName = uuid.v4() + '.jpg';
+    			//Помещаем файл в папку static
+                const filePath = path.resolve(__dirname, '..', 'static')
+    			//Если папки нет, то создаём
+                if (!fs.existsSync(filePath)){
+                    fs.mkdirSync(filePath, {recursive: true})
+                }
+                fs.writeFileSync(path.join(filePath, fileName), file.buffer)
+                return fileName
+            }
+            catch (e) {
+                throw new HttpException('Произошла ошибка при записи файла', HttpStatus.INTERNAL_SERVER_ERROR)
+            }
+        }
+    }
+    ```
+   >⚠️ Методы с препиской `sync` (`existsSync`, `mkdirSync`, `writeFileSync`) блокируют поток. Они использованы только в демонстрации, в реальных проектах их использовать нельзя!
+### Serve static
+1. Мы можем загружать файлы, но не можем просматривать перейдя по ссылке. Для того, чтобы появилась возможность работать со статикой необходимо скачать пакет **serve-static** `npm install --save @nestjs/serve-static`. После чего в модуль `app.module.ts` импортируем модуль `ServeStaticModule` и в аргументах указываем путь к папке `static`.
+    ```TypeScript
+    //TypeScript
+    //📁src/app.module.ts
+    
+    import { Module } from '@nestjs/common';
+    import { DatabaseModule } from './database/database.module';
+    import { UserModule } from './user/user.module';
+    import { RolesModule } from './roles/roles.module';
+    import { AuthModule } from './auth/auth.module';
+    import { PostsModule } from './posts/posts.module';
+    import { FilesModule } from './files/files.module';
+    import * as path from 'path'
+    import {ServeStaticModule} from "@nestjs/serve-static";
+    
+    @Module({
+      imports: [
+        ServeStaticModule.forRoot({
+          rootPath: path.resolve(__dirname,'static'),
+        }),
+          DatabaseModule,
+          UserModule,
+          RolesModule,
+          AuthModule,
+          PostsModule,
+          FilesModule
+      ],
+      controllers: [],
+      providers: [],
+    })
+    export class AppModule {}
+    ```
+2. Теперь перейдя по пути http://localhost:4001/*название-файла*.jpg мы увидим загруженный файл.
+<hr/>
