@@ -36,15 +36,6 @@ export class UserService {
         return await this.userRepository.findOne({where: {id: id}})
     }
 
-    // async verifyUserRole(email: string, neededRole: string) {
-    //     return await this.userRepository.findOne({
-    //         where: {email: email},
-    //         include: {model: Roles, required: true, where: {role: neededRole}}
-    //     })
-    // }
-
-
-
     async addRole(dto: AddRoleDto) {
         const user = await this.userRepository.findByPk(dto.userId);
         const role = await this.roleService.getRoleByValue(dto.value);

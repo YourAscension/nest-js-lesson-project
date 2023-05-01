@@ -7,3 +7,7 @@ export const UnauthorizedMessages: MessagesConstantType = {
 export const ForbiddenMessages: MessagesConstantType = {
     ACCESS_DENIED: "Доступ запрещён"
 }
+
+export const BadRequestMessages: MessagesConstantType = {
+    USER_ALREADY_EXISTS: 'Пользователь с таким email уже существует'
+}

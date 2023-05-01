@@ -10,7 +10,7 @@ import {RolesModule} from "../roles/roles.module";
     imports: [
         SequelizeModule.forFeature([User]),
         RolesModule,
-            TokenModule
+        TokenModule
     ],
     controllers: [UserController],
     providers: [UserService],

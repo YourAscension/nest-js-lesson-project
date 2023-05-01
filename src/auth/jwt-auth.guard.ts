@@ -10,7 +10,7 @@ export class JwtAuthGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
         const request = context.switchToHttp().getRequest()
         const authorizationHeader = request.headers.authorization;
-        const {payload} = this.tokenService.verifyToken(authorizationHeader, 'access')
+        const { payload } = this.tokenService.verifyToken(authorizationHeader, 'access')
         return payload
     }
 }

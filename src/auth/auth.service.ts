@@ -5,7 +5,7 @@ import * as bcrypt from 'bcryptjs'
 import {TokenService} from "../token/token.service";
 import {CreateTokenDto} from "../token/dto/create-token.dto";
 import {plainToClass} from "class-transformer";
-import {UnauthorizedMessages} from "../common/constants";
+import {BadRequestMessages, UnauthorizedMessages} from "../common/constants";
 
 @Injectable()
 export class AuthService {
@@ -27,7 +27,7 @@ export class AuthService {
     async registration(userDto: CreateUserDto){
         let user = await this.userService.getUserByEmail(userDto.email);
         if (user) {
-            throw new BadRequestException('Пользователь с таким email уже существует')
+            throw new BadRequestException(BadRequestMessages.USER_ALREADY_EXISTS)
         }
         const hashPassword = await bcrypt.hash(userDto.password, 5);
         user = await this.userService.createUser({...userDto, password: hashPassword})
@@ -38,7 +38,7 @@ export class AuthService {
         const user = await this.userService.getUserByEmail(userDto.email)
 
         if (!user) {
-            throw new UnauthorizedException('Неправильный email или пароль')
+            throw new UnauthorizedException(UnauthorizedMessages.WRONG_EMAIL_OR_PASSWORD)
         }
         const passwordEquals = await bcrypt.compare(userDto.password, user.password)
         if (!passwordEquals) {
