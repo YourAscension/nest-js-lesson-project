@@ -13,7 +13,7 @@ export class AuthService {
         const user = await this.validateUser(userDto);
         const tokens = await this.tokenService.generateTokens(user)
         await this.tokenService.create({userId: user.id, token: tokens.refreshToken})
-        return {user, ...tokens}
+        return {user, tokens}
     }
 
     async registration(userDto: CreateUserDto){
@@ -37,6 +37,22 @@ export class AuthService {
             throw new UnauthorizedException('Неправильный email или пароль')
         }
         return user
+    }
+
+    async refreshToken(inputToken: string) {
+        const token = inputToken.split(' ')[1];
+        const payloadData = this.tokenService.verifyToken(inputToken, 'refresh');
+        const tokenFromDb = await this.tokenService.findToken(token)
+
+        console.log(payloadData)
+        if (!payloadData || !tokenFromDb) {
+            throw new UnauthorizedException('Невалидный токен')
+        }
+
+        const user = await this.userService.getUserById(payloadData.id);
+        const newTokens = await this.tokenService.generateTokens(user);
+        await this.tokenService.create({userId: user.id, token: newTokens.refreshToken})
+        return {user, newTokens}
     }
 
 }

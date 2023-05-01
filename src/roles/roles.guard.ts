@@ -1,12 +1,12 @@
 import {CanActivate, ExecutionContext, ForbiddenException, Injectable} from "@nestjs/common";
 import {Reflector} from "@nestjs/core";
 import {ROLE_KEY} from "./roles-auth.decorator";
-import {UserService} from "../user/user.service";
 import {TokenService} from "../token/token.service";
+import {RolesService} from "./roles.service";
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-    constructor(private userService: UserService, private tokenService : TokenService, private reflector: Reflector) {
+    constructor(private rolesService: RolesService, private tokenService : TokenService, private reflector: Reflector) {
     }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -22,7 +22,7 @@ export class RolesGuard implements CanActivate {
 
         const user =  this.tokenService.verifyToken(authorizationHeader, 'access')
 
-        const accessIsAllowed = await this.userService.verifyUserRole(user.email, requiredRole)
+         const accessIsAllowed = await this.rolesService.checkUserRole(requiredRole, user.id)
 
         if (!accessIsAllowed) {
             throw new ForbiddenException({message: 'Доступ ограничен'})

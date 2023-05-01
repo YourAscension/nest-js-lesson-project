@@ -32,12 +32,16 @@ export class UserService {
         return user;
     }
 
-    async verifyUserRole(email: string, neededRole: string) {
-        return await this.userRepository.findOne({
-            where: {email: email},
-            include: {model: Roles, required: true, where: {role: neededRole}}
-        })
+    async getUserById(id: number){
+        return await this.userRepository.findOne({where: {id: id}})
     }
+
+    // async verifyUserRole(email: string, neededRole: string) {
+    //     return await this.userRepository.findOne({
+    //         where: {email: email},
+    //         include: {model: Roles, required: true, where: {role: neededRole}}
+    //     })
+    // }
 
 
 
