@@ -16,6 +16,11 @@ export class UserController {
     constructor(private readonly userService: UserService) {
     }
 
+    @Post('test')
+    async test(@Body() dto: {email:string}){
+        return await this.userService.getUserByEmail(dto.email);
+    }
+
     @ApiOperation({summary: 'Создание пользователя'})
     @ApiResponse({status: 200, type: User})
     @UsePipes(ValidationPipe)
@@ -38,9 +43,9 @@ export class UserController {
     @ApiOperation({summary: 'Выдать роль'})
     @ApiResponse({status: 200})
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    // @UseGuards(JwtAuthGuard)
     @Role('ADMIN')
-    @UseGuards(RolesGuard)
+    // @UseGuards(RolesGuard)
     @Post('/role')
     addRole(@Body() dto: AddRoleDto) {
         return this.userService.addRole(dto)
@@ -48,9 +53,9 @@ export class UserController {
     @ApiOperation({summary: 'Забанить пользователя'})
     @ApiResponse({status: 200})
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard)
+    // @UseGuards(JwtAuthGuard)
     @Role('ADMIN')
-    @UseGuards(RolesGuard)
+    // @UseGuards(RolesGuard)
     @Post('/ban')
     ban(@Body() dto: BanUserDto) {
         return this.userService.ban(dto)

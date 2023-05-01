@@ -7,6 +7,8 @@ import {Roles} from "../roles/roles.model";
 import {RolesModule} from "../roles/roles.module";
 import {configModule} from "../common/config.root";
 import {Posts} from "../posts/posts.model";
+import {Token} from "../token/token.model";
+import {TokenModule} from "../token/token.module";
 
 @Module({
     imports: [
@@ -20,10 +22,11 @@ import {Posts} from "../posts/posts.model";
             database: process.env.DB_DATABASE,
             autoLoadModels: true,
             synchronize: true,
-            models: [User, Roles, Posts]
+            models: [User, Roles, Posts, Token]
         }),
         UserModule,
-        RolesModule
+        RolesModule,
+        TokenModule
     ],
 })
 export class DatabaseModule {

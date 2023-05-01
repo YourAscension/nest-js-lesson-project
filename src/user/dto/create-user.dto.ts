@@ -10,6 +10,6 @@ export class CreateUserDto {
     @IsString({message: 'Должно быть строкой'})
     @Length(6, 12, {message: 'Не меньше 6 и не больше 12'} )
     readonly password: string;
-    @ApiProperty({example: '1', description: 'ID роли'})
-    readonly roleId: number;
+    // @ApiProperty({example: '1', description: 'ID роли'})
+    // readonly roleId: number;
 }

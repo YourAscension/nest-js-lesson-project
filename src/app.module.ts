@@ -7,6 +7,7 @@ import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
 import * as path from 'path'
 import {ServeStaticModule} from "@nestjs/serve-static";
+import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [

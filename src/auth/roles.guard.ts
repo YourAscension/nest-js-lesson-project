@@ -2,11 +2,11 @@ import {CanActivate, ExecutionContext, ForbiddenException, Injectable} from "@ne
 import {Reflector} from "@nestjs/core";
 import {ROLE_KEY} from "./roles-auth.decorator";
 import {UserService} from "../user/user.service";
-import {AuthService} from "./auth.service";
+import {TokenService} from "../token/token.service";
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-    constructor(private authService: AuthService, private userService: UserService, private reflector: Reflector) {
+    constructor(private userService: UserService, private tokenService : TokenService, private reflector: Reflector) {
     }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -18,9 +18,9 @@ export class RolesGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest();
         //Вытаскиваем Authorization из header запроса
-        const authHeader = request.headers.authorization;
+        const authorizationHeader = request.headers.authorization
 
-        const user = this.authService.verifyToken(authHeader)
+        const user =  this.tokenService.verifyToken(authorizationHeader, 'access')
 
         const accessIsAllowed = await this.userService.verifyUserRole(user.email, requiredRole)
 

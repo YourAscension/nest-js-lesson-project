@@ -2,6 +2,7 @@ import {Table, Column, Model, PrimaryKey, DataType, BelongsTo, ForeignKey, HasMa
 import {ApiProperty} from "@nestjs/swagger";
 import {Roles} from "../roles/roles.model";
 import {Posts} from "../posts/posts.model";
+import {Token} from "../token/token.model";
 
 interface UserCreationAttribute {
     email: string;
@@ -34,4 +35,7 @@ export class User extends Model<User, UserCreationAttribute> {
 
     @HasMany(()=>Posts)
     posts: Posts[]
+
+    @HasMany(()=>Token)
+    tokens: Token[]
 }

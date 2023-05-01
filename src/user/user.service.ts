@@ -26,7 +26,9 @@ export class UserService {
     }
 
     async getUserByEmail(email: string) {
-        const user = await this.userRepository.findOne({where: {email: email}, include: {all: true}});
+        const user = await this.userRepository.findOne({where: {email: email}, include: {
+                model: Roles
+            }});
         return user;
     }
 
@@ -36,6 +38,8 @@ export class UserService {
             include: {model: Roles, required: true, where: {role: neededRole}}
         })
     }
+
+
 
     async addRole(dto: AddRoleDto) {
         const user = await this.userRepository.findByPk(dto.userId);
