@@ -4,6 +4,8 @@ import {UserService} from "../user/user.service";
 import * as bcrypt from 'bcryptjs'
 import {TokenService} from "../token/token.service";
 import {CreateTokenDto} from "../token/dto/create-token.dto";
+import {plainToClass} from "class-transformer";
+import {UnauthorizedMessages} from "../common/constants";
 
 @Injectable()
 export class AuthService {
@@ -16,8 +18,8 @@ export class AuthService {
         const user = await this.validateUser(userDto);
         const tokens = await this.tokenService.generateTokens(user)
 
-        const token = new CreateTokenDto(user.id,tokens.refreshToken)
-        await this.tokenService.create(token)
+        const tokenDto = plainToClass(CreateTokenDto, {userId: user.id, token: tokens.refreshToken.split(' ')[1]})
+        await this.tokenService.create(tokenDto)
 
         return {user, tokens}
     }
@@ -40,29 +42,26 @@ export class AuthService {
         }
         const passwordEquals = await bcrypt.compare(userDto.password, user.password)
         if (!passwordEquals) {
-            throw new UnauthorizedException('Неправильный email или пароль')
+            throw new UnauthorizedException(UnauthorizedMessages.WRONG_EMAIL_OR_PASSWORD)
         }
         return user
     }
 
     async refreshToken(inputToken: string) {
-        const token = inputToken.split(' ')[1];
-        const payloadData = this.tokenService.verifyToken(inputToken, 'refresh');
+        const {payload, token} = this.tokenService.verifyToken(inputToken, 'refresh');
         const tokenFromDb = await this.tokenService.findToken(token)
 
-        console.log(payloadData)
-        if (!payloadData || !tokenFromDb) {
-            throw new UnauthorizedException('Невалидный токен')
+        if (!payload || !tokenFromDb) {
+            throw new UnauthorizedException(UnauthorizedMessages.USER_NOT_AUTHORIZED)
         }
 
-        const user = await this.userService.getUserById(payloadData.id);
+        const user = await this.userService.getUserById(payload.id);
         const newTokens = await this.tokenService.generateTokens(user);
 
-        const tokenDto = new CreateTokenDto(user.id,newTokens.refreshToken)
+        const tokenDto = plainToClass(CreateTokenDto, {userId: user.id, token: newTokens.refreshToken.split(' ')[1]})
 
         await this.tokenService.update(tokenDto, tokenFromDb.id)
         return {user, newTokens}
     }
-
 }
 
