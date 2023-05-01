@@ -1,4 +1,4 @@
-import {Injectable, UnauthorizedException} from '@nestjs/common';
+import {Injectable, NotFoundException, UnauthorizedException} from '@nestjs/common';
 import {InjectModel} from "@nestjs/sequelize";
 import {Token} from "./token.model";
 import {CreateTokenDto} from "./dto/create-token.dto";
@@ -6,14 +6,32 @@ import {JwtService} from "@nestjs/jwt";
 import {User} from "../user/user.model";
 import {UserService} from "../user/user.service";
 import {CreateUserDto} from "../user/dto/create-user.dto";
+import * as process from "process";
 
 @Injectable()
 export class TokenService {
+    private readonly accessTokenOptions = {secret: process.env.ACCESS_TOKEN_SECRET, expiresIn: process.env.ACCESS_TOKEN_MINUTES+'m'}
+    private readonly refreshTokenOptions = {secret: process.env.REFRESH_TOKEN_SECRET, expiresIn: process.env.REFRESH_TOKEN_DAYS+'d'}
+
     constructor(@InjectModel(Token) private tokenRepository: typeof Token, private jwtService: JwtService) {
     }
 
+
     async create(dto: CreateTokenDto) {
         const token = await this.tokenRepository.create(dto)
+        return token;
+    }
+
+    async update(dto:CreateTokenDto, id: number){
+        const token = await this.tokenRepository.findByPk(id);
+        if (!token) {
+            throw new NotFoundException(`Token with id ${id} not found`);
+        }
+        token.token = dto.token;
+        token.refreshCount += 1;
+        token.issuedAt = dto.issuedAt;
+        token.expiresIn = dto.expiresIn;
+        await token.save();
         return token;
     }
 
@@ -25,31 +43,11 @@ export class TokenService {
         const payload = {id: user.id, email: user.email}
 
         const tokens = {
-            accessToken: await this.jwtService.signAsync(payload, {secret: 'text111', expiresIn: '1m'}),
-            refreshToken: await this.jwtService.signAsync(payload, {secret: 'text', expiresIn: '7d'})
+            accessToken: await this.jwtService.signAsync(payload, this.accessTokenOptions),
+            refreshToken: await this.jwtService.signAsync(payload, this.refreshTokenOptions)
         }
         return tokens
     }
-
-    // async refreshToken(inputToken: string) {
-    //     const tokenType = inputToken.split(' ')[0];
-    //     const token = inputToken.split(' ')[1];
-    //     if (tokenType !== 'Bearer' || !token) {
-    //         throw new UnauthorizedException('Невалидный токен')
-    //     }
-    //
-    //     const payloadData = this.verifyToken(token, 'refresh');
-    //     const tokenFromDb = await this.findToken(token)
-    //
-    //     if (!payloadData || !tokenFromDb) {
-    //         throw new UnauthorizedException('Невалидный токен')
-    //     }
-    //
-    //     const user = await this.userService.getUserById(payloadData.id);
-    //     const newTokens = await this.generateTokens(user);
-    //     await this.create({userId: user.id, token: newTokens.refreshToken})
-    //     return {...newTokens, user: CreateUserDto}
-    // }
 
     verifyToken(inputToken: string, tokenVariant: 'access' | 'refresh') {
         try {
@@ -59,8 +57,11 @@ export class TokenService {
                 throw new Error()
             }
             //Проверяем токен, если токен невалидный, то ошибка, если валидный - данные.
-            const secret = tokenVariant === 'access' && 'text111' || tokenVariant === 'refresh' && 'text'
-            return this.jwtService.verify(token, {secret});
+            const tokenVariantsSecret = {
+                access: this.accessTokenOptions.secret,
+                refresh: this.refreshTokenOptions.secret
+            }
+            return this.jwtService.verify(token, {secret: tokenVariantsSecret[tokenVariant]});
         } catch (e) {
             throw new UnauthorizedException('Невалидный токен')
         }

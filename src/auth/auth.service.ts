@@ -3,16 +3,22 @@ import {CreateUserDto} from "../user/dto/create-user.dto";
 import {UserService} from "../user/user.service";
 import * as bcrypt from 'bcryptjs'
 import {TokenService} from "../token/token.service";
+import {CreateTokenDto} from "../token/dto/create-token.dto";
 
 @Injectable()
 export class AuthService {
+
+
     constructor(private userService: UserService, private tokenService: TokenService) {
     }
 
     async login(userDto: CreateUserDto) {
         const user = await this.validateUser(userDto);
         const tokens = await this.tokenService.generateTokens(user)
-        await this.tokenService.create({userId: user.id, token: tokens.refreshToken})
+
+        const token = new CreateTokenDto(user.id,tokens.refreshToken)
+        await this.tokenService.create(token)
+
         return {user, tokens}
     }
 
@@ -51,7 +57,10 @@ export class AuthService {
 
         const user = await this.userService.getUserById(payloadData.id);
         const newTokens = await this.tokenService.generateTokens(user);
-        await this.tokenService.create({userId: user.id, token: newTokens.refreshToken})
+
+        const tokenDto = new CreateTokenDto(user.id,newTokens.refreshToken)
+
+        await this.tokenService.update(tokenDto, tokenFromDb.id)
         return {user, newTokens}
     }
 

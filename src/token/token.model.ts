@@ -7,6 +7,12 @@ export class Token extends Model<Token>{
     id: number;
     @Column({type: DataType.STRING, allowNull: false})
     token: string;
+    @Column({type: DataType.INTEGER, defaultValue: 0})
+    refreshCount: number;
+    @Column({type: DataType.DATEONLY, allowNull: false})
+    issuedAt: Date;
+    @Column({type: DataType.DATEONLY, allowNull: false})
+    expiresIn: Date;
     @ForeignKey(()=>User)
     @Column({type: DataType.INTEGER, allowNull: false})
     userId: number;

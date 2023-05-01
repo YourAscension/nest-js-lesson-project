@@ -4,9 +4,11 @@ import {TokenController} from './token.controller';
 import {JwtModule} from "@nestjs/jwt";
 import {SequelizeModule} from "@nestjs/sequelize";
 import {Token} from "./token.model";
+import {configModule} from "../common/config.root";
 
 @Module({
     imports: [
+        configModule,
         SequelizeModule.forFeature([Token]),
         JwtModule
     ],
