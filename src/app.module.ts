@@ -5,21 +5,21 @@ import { RolesModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
 import { PostsModule } from './posts/posts.module';
 import { FilesModule } from './files/files.module';
-import * as path from 'path'
-import {ServeStaticModule} from "@nestjs/serve-static";
+import * as path from 'path';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { TokenModule } from './token/token.module';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: path.resolve(__dirname,'static'),
+      rootPath: path.resolve(__dirname, 'static'),
     }),
-      DatabaseModule,
-      UserModule,
-      RolesModule,
-      AuthModule,
-      PostsModule,
-      FilesModule
+    DatabaseModule,
+    UserModule,
+    RolesModule,
+    AuthModule,
+    PostsModule,
+    FilesModule,
   ],
   controllers: [],
   providers: [],
