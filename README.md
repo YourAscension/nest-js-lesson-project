@@ -32,6 +32,13 @@
    1) [Модуль Posts](#модуль-posts)
    2) [Модуль Files](#модуль-files)
    3) [Serve static](#serve-static)
+10. [Начало](#начало)
+11. [e2e тесты для контроллера User (Post, Get, Delete)](#e2e-тесты-для-контроллера-user-post-get-delete)
+    1) [Функция describe, подключения и иницализация модуля App](#функция-describe-подключения-и-иницализация-модуля-app)
+    2) [Объяснение логики создания тестов на примере теста на создание пользователя](#объяснение-логики-создания-тестов-на-примере-теста-на-создание-пользователя)
+    3) [Тесты с проверкой результатов при успехе](#тесты-с-проверкой-результатов-при-успехе)
+    4) [Тест с проверкой результата при ошибке](#тест-с-проверкой-результата-при-ошибке)
+    5) [Тесты с авторизацией](#тесты-с-авторизацией)
 <hr>
 
 ## Создание проекта
@@ -1838,3 +1845,344 @@
     ```
 2. Теперь перейдя по пути http://localhost:4001/*название-файла*.jpg мы увидим загруженный файл.
 <hr/>
+
+## Начало
+
+1. В корне проекта создадим папку `test`. В ней будут находиться сами тесты и конфиг.
+
+    ```json
+    //📁test/jest-e2e.json
+    
+    {
+      "moduleFileExtensions": [
+        "js",
+        "json",
+        "ts"
+      ],
+      "rootDir": ".",
+      "testEnvironment": "node",
+      "testRegex": ".e2e-spec.ts$",
+      "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+      }
+    }
+    ```
+
+2. Тесты запускаются командой `test:e2e`. Т.к. используется библиотека **cross-env**, то необходимо в скрипте передать переменную, в которой указан какой тип файла `.env` нужно использовать во время тестов. `"test:e2e": "cross-env NODE_ENV=development jest --config ./test/jest-e2e.json”`
+
+## e2e тесты для контроллера User (Post, Get, Delete)
+
+### Функция describe, подключения и иницализация модуля App
+
+1. Создадим файл `user.e2e-spec.ts` - в нём будут описаны тесты для контроллера.
+   1. В функции `describe` будут описаны все тесты для контроллера;
+   2. В функции `beforeEach` (выполняется до начала тестирования) происходит тестовое подключение модуля `App` и запуск приложения.
+   3. В функции `afterEach` (выполняется после всех тестов) завершаем работу приложения.
+
+    ```tsx
+    //📁test/user.e2e-spec.ts
+    import { Test, TestingModule } from '@nestjs/testing';
+    import { AppModule } from '../src/app.module'
+    import { INestApplication } from '@nestjs/common';
+    import * as request from 'supertest';
+    
+    describe('UserController (e2e)', () => {
+        let app: INestApplication;
+    
+        beforeEach(async () => {
+            const moduleFixture: TestingModule = await Test.createTestingModule({
+                imports: [AppModule],
+            }).compile();
+    
+            app = moduleFixture.createNestApplication();
+            await app.init();
+        });
+    
+        afterEach(async () => {
+            await app.close();
+        });
+    
+    });
+    ```
+
+
+### Объяснение логики создания тестов на примере теста на создание пользователя
+
+1. Выше функции `describe` создадим объект типа `CreateUserDto`, в котором укажем тестовые данные для создания пользователя.
+
+    ```tsx
+    //📁test/user.e2e-spec.ts
+    
+    const testUserDto: CreateUserDto = {
+        email: 'testfromjest@mail.ru',
+        password: 'qwerty12354'
+    }
+    ```
+
+2. В теле функции `describe` объявим переменную `createUserId`, в которую будем помещать `id` созданного пользователя. Он будет использоваться вдальнейшем.
+3. В теле функции `describe` создадим функции для тестирования `it`. Она принимает 2 параметра: название теста и `callback`, в котором будет проходить тест.
+
+    ```tsx
+    //📁test/user.e2e-spec.ts
+    import { Test, TestingModule } from '@nestjs/testing';
+    import { AppModule } from '../src/app.module'
+    import { INestApplication } from '@nestjs/common';
+    import * as request from 'supertest';
+    import {CreateUserDto} from "../src/user/dto/create-user.dto";
+    
+    const testUserDto: CreateUserDto = {
+        email: 'testfromjest@mail.ru',
+        password: 'qwerty12354'
+    }
+    
+    describe('UserController (e2e)', () => {
+        let app: INestApplication;
+        let createdUserId: number;
+    
+        beforeEach(async () => {
+            const moduleFixture: TestingModule = await Test.createTestingModule({
+                imports: [AppModule],
+            }).compile();
+    
+            app = moduleFixture.createNestApplication();
+            await app.init();
+        });
+    
+        afterEach(async () => {
+            await app.close();
+        });
+    
+        it('successful: /users (POST)',   async () => {
+            return await request(app.getHttpServer())
+                .post('/users')
+                .send(testUserDto)
+                .expect(201)
+                .then(({body}: request.Response)=>{
+                    createdUserId = body.id;
+                    expect(createdUserId).toBeDefined();
+                })
+        });
+    });
+    ```
+
+   В **callback** функции выполняем запрос к серверу.
+
+   1. `post(’/users’)` - `POST` запрос на эндпоинт `/users`;
+   2. `send(testUserDto)` - в теле посылаем данные, которые указал в `testUserDto`;
+   3. `expect(201)` - ожидаем ответ `201` (Created);
+   4. В `then` указываем `callback`, в котором из `body` ответа забираем `id` и присваем его переменной `createdUserId`.
+   5. С помощью функции `expect(createUserId).toBeDefined()` указываем, что мы ожидаем, что переменная определена.
+4. Запускаем тест с помощью `npm test:e2e`.
+
+### Тесты с проверкой результатов при успехе
+
+1. Остальные тесты делают аналогичным способом. В них будем использовать переменную `createdUserId`, значение для которой получили после теста создания пользователя.
+
+    ```tsx
+    //📁test/user.e2e-spec.ts
+    import { Test, TestingModule } from '@nestjs/testing';
+    import { AppModule } from '../src/app.module'
+    import { INestApplication } from '@nestjs/common';
+    import * as request from 'supertest';
+    import {CreateUserDto} from "../src/user/dto/create-user.dto";
+    
+    const testUserDto: CreateUserDto = {
+        email: 'testfromjest@mail.ru',
+        password: 'qwerty12354'
+    }
+    
+    describe('UserController (e2e)', () => {
+        let app: INestApplication;
+        let createdUserId: number;
+    
+        beforeEach(async () => {
+            const moduleFixture: TestingModule = await Test.createTestingModule({
+                imports: [AppModule],
+            }).compile();
+    
+            app = moduleFixture.createNestApplication();
+            await app.init();
+        });
+    
+        afterEach(async () => {
+            await app.close();
+        });
+    
+        it('successful: /users (POST)',   async () => {
+            return await request(app.getHttpServer())
+                .post('/users')
+                .send(testUserDto)
+                .expect(201)
+                .then(({body}: request.Response)=>{
+                    createdUserId = body.id;
+                    expect(createdUserId).toBeDefined();
+                })
+        });
+    
+        it('successful: /users/:id (GET)', async ()=>{
+            return await request(app.getHttpServer())
+                .get(`/users/${createdUserId}`)
+                .expect(200)
+                .then(({body}: request.Response)=>{
+                    expect(body).toBeDefined()
+                })
+        })
+    
+        it('successful: /users/:id (DELETE)', async ()=>{
+            return await request(app.getHttpServer())
+                .delete(`/users/${createdUserId}`)
+                .expect(204)
+                .then(({body}: request.Response)=>{
+                    expect(body).toEqual({})
+                })
+        })
+    });
+    ```
+
+
+### Тест с проверкой результата при ошибке
+
+1. В `user.controller.ts` есть `Delete` метод. В случае ошибки он возвращает в случае ошибки он возвращает код `404` с сообщанием `“Пользователь не найден”`.
+
+    ```tsx
+    //📁src/user/user.controller.ts
+    import {Body,Controller, Delete,Get, HttpCode,NotFoundException,Param,Post} from '@nestjs/common';
+    import { UserService } from './user.service';
+    import { CreateUserDto } from './dto/create-user.dto';
+    import { User } from './user.model';
+    
+    @Controller('users')
+    export class UserController {
+      constructor(private readonly userService: UserService) {}
+    
+      @Get(':id')
+      async getUserById(@Param('id') id: number) {
+        const user = await this.userService.getUserById(id);
+        if(!user){
+          throw new NotFoundException('Пользователь не найден')
+        }
+        return user;
+      }
+    
+      @Post()
+      async createUser(@Body() userDto: CreateUserDto) {
+        return await this.userService.createUser(userDto);
+      }
+      @HttpCode(204)
+      @Delete(':id')
+      async delete(@Param('id') id: number){
+        const deletedUser = await this.userService.deleteUser(id);
+        if (!deletedUser){
+          throw new NotFoundException('Пользователь не найден')
+        }
+        return
+      }
+    }
+    ```
+
+2. Тест для проверки ошибки
+
+    ```tsx
+    //📁test/user.e2e-spec.ts
+    import { Test, TestingModule } from '@nestjs/testing';
+    import { AppModule } from '../src/app.module'
+    import { INestApplication } from '@nestjs/common';
+    import * as request from 'supertest';
+    
+    describe('UserController (e2e)', () => {
+        let app: INestApplication;
+    
+        beforeEach(async () => {
+            const moduleFixture: TestingModule = await Test.createTestingModule({
+                imports: [AppModule],
+            }).compile();
+    
+            app = moduleFixture.createNestApplication();
+            await app.init();
+        });
+    
+        afterEach(async () => {
+            await app.close();
+        });
+    
+        it('failed: /users/:id (DELETE)',  ()=>{
+            return request(app.getHttpServer())
+                .delete(`/users/${999}`)
+                .expect(404, {
+                    statusCode: 404,
+                    message: 'Пользователь не найден',
+                    error: 'Not Found'
+                })
+        })
+    });
+    ```
+
+
+### Тесты с авторизацией
+
+1. Для инициализации приложения изменим метод с `beforeEach`, на `beforeAll` (чтобы авторизация не происходила перед каждым тестом, а только в момент запуска). Аналогичное изменим `afterEach` на `afterAll`.
+   1. Создадим `loginDto` где будут указаны данные для тестовой авторизации;
+   2. Импортируем `cookie-parser` для работы с кукам и вызовем его до инициализации приложения;
+   3. Создадим переменные `accessToken` и `refreshToken` - в них будут токены;
+   4. После инициализации приложения сделаем запрос на авторизацию. Из ответа получаем `access` и `refresh` токены, их записываем в созданные выше переменные;
+   5. `GET /users` разрешён только авторизованны пользователям, поэтому в тесте при написании запроса укажем заголовок `Authorization` и поместим туда `access` токен .`set('Authorization', accessToken)`;
+   6. После того как все тесты завершены, необходимо выполнить запрос на выход из аккаунта. Запрос выполняется в метода `afterAll`. Помещаем в куки `refresh` токен `.set("cookie", refreshToken[0])`. ⚠️ Для корректной работы нужно использовать **cookie-parser**.
+
+    ```tsx
+    import { Test, TestingModule } from '@nestjs/testing';
+    import { AppModule } from '../src/app.module'
+    import { INestApplication } from '@nestjs/common';
+    import * as request from 'supertest';
+    import {CreateUserDto} from "../src/user/dto/create-user.dto";
+    import * as cookieParser from 'cookie-parser';
+    
+    const testUserDto: CreateUserDto = {
+        email: 'testfromjest@mail.ru',
+        password: 'qwerty12354'
+    }
+    
+    const loginDto:CreateUserDto = {
+        email: "111bardak@rambler.ru",
+        password: "qwerty"
+    }
+    
+    describe('UserController (e2e)', () => {
+        let app: INestApplication;
+        let createdUserId: number;
+        let accessToken: string;
+        let refreshToken: string[];
+    
+        beforeAll(async () => {
+            const moduleFixture: TestingModule = await Test.createTestingModule({
+                imports: [AppModule],
+            }).compile();
+    
+            app = moduleFixture.createNestApplication();
+            app.use(cookieParser())
+            await app.init();
+    
+            const res = await request(app.getHttpServer())
+                .post('/auth/login')
+                .send(loginDto)
+            accessToken = res.body.accessToken;
+            refreshToken = res.get('Set-Cookie')
+         });
+    
+        afterAll(async () => {
+            await request(app.getHttpServer())
+                .delete('/auth/logout')
+                .set("cookie", refreshToken[0])
+            await app.close();
+        });
+    
+        it('successful authorized: /users (GET)', async ()=>{
+            return await request(app.getHttpServer())
+                .get(`/users`)
+                .set('Authorization', accessToken)
+                .expect(200)
+                .then(({body}: request.Response)=>{
+                    expect(body).toBeDefined()
+                })
+        })
+    });
+    ```
